@@ -1,0 +1,30 @@
+# Node modules & Electron binaries
+node_modules/
+*.exe
+*.dll
+
+# Electron build/output folders
+/dist/
+/build/
+/out/
+
+# Python cache & virtual env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+
+# Flask upload folders
+uploads/
+
+# VSCode/editor config
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>AI Study Buddy</title>
+    <script src="renderer.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+</head>
+<body class="section">
+    <div class="container">
+        <h1 class="title is-3">AI Study Buddy</h1>
+        
+        <div class="field">
+            <div class="control">
+                <textarea id="userInput" class="textarea is-medium" placeholder="Paste or type text here..."></textarea>
+            </div>
+        </div>
+
+        <div class="field">
+            <div class="control">
+                <button id="processBtn" class="button is-link is-medium">Summarize Text</button>
+            </div>
+        </div>
+
+        <pre id="output" class="box mt-4 has-text-grey-dark"></pre>
+    </div>
+</body>
+</html>
