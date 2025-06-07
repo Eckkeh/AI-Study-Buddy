@@ -36,3 +36,12 @@ ipcMain.handle('send-text', async (event, inputText) => {
     });
     return await response.json();
 });
+
+ipcMain.handle('send-pdf', async (event, pdfBytes) => {
+    const response = await fetch('http://127.0.0.1:5000/process-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: Buffer.from(pdfBytes),
+    });
+    return await response.json();
+});
