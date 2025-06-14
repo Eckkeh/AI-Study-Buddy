@@ -19,7 +19,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    pythonProcess = spawn('python', ['backend/app.py']);
+    // pythonProcess = spawn('python', ['backend/app.py']);
+
     createWindow();
 });
 
@@ -43,5 +44,6 @@ ipcMain.handle('send-pdf', async (event, pdfBytes) => {
         headers: { 'Content-Type': 'application/octet-stream' },
         body: Buffer.from(pdfBytes),
     });
-    return await response.json();
+    const data = await response.json();
+    return data;
 });
