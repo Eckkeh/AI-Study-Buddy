@@ -3,6 +3,7 @@ import fitz
 import spacy
 from transformers import pipeline
 import io
+import traceback
 
 app = Flask(__name__)
 nlp = spacy.load('en_core_web_sm')
@@ -65,7 +66,7 @@ def process():
         return jsonify({'error': 'No text provided'}), 400
 
     questions = generate_questions(text)
-    return jsonify({'questions': '\n'.join(questions)})
+    return jsonify({'questions': questions})
 
 
 # Route: PDF File Processing
@@ -76,12 +77,12 @@ def process_pdf():
         return jsonify({'error': 'No PDF data received'}), 400
 
     try:
-        with fitz.open(io.BytesIO(pdf_bytes)) as pdf:
-            print(f"PDF has {len(pdf.pages)} pages")
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
+            print(f"PDF has {len(pdf)} pages")
 
             full_text = ''
-            for i, page in enumerate(pdf.pages):
-                page_text = page.extract_text()
+            for i, page in enumerate(pdf):
+                page_text = page.get_text()
                 print(f"Page {i+1} text: {repr(page_text)}")
                 if page_text:
                     full_text += page_text + '\n'
@@ -92,9 +93,11 @@ def process_pdf():
             return jsonify({'error': 'No text extracted from PDF.'})
 
         questions = generate_questions(full_text)
-        return jsonify({'questions': '\n'.join(questions)}), 200
+        return jsonify({'questions': questions}), 200
 
     except Exception as e:
+        print("Exception in /process-pdf route:")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
