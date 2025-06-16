@@ -4,11 +4,17 @@ const uploadSection = document.getElementById('uploadSection');
 const loadingSection = document.getElementById('loadingSection');
 const quizSection = document.getElementById('quizSection');
 const quizContainer = document.getElementById('quizContainer');
+const submitBtn = document.getElementById('submitBtn');
+const resultsSection = document.getElementById('resultsSection');
+const resultsContainer = document.getElementById('resultsContainer');
+
+let currentQuestions = [];
 
 function showSection(section) {
   uploadSection.style.display = 'none';
   loadingSection.style.display = 'none';
   quizSection.style.display = 'none';
+  resultsSection.style.display = 'none';
 
   section.style.display = 'block';
 }
@@ -103,3 +109,45 @@ function displayQuiz(questions) {
     quizContainer.appendChild(questionBox);
   });
 }
+
+submitBtn.addEventListener('click', () => {
+    let correct = 0;
+    let total = currentQuestions.length;
+    resultsContainer.innerHTML = '';
+
+    currentQuestions.forEach((q, idx) => {
+        if (typeof q === 'string') return;
+        let userAnswer = '';
+        let correctAnswer = q.answer || '';
+
+        if (q.type === 'mcq') {
+            const selected = document.querySelector(`input[name="question${idx}"]:checked`);
+            userAnswer = selected ? selected.value : '';
+        } else if (q.type === 'fill') {
+            const input = quizContainer.querySelector(`input[data-question-index="${idx}"]`);
+            userAnswer = input?.value?.trim() || '';
+        }
+
+        const resultBox = document.createElement('div');
+        resultBox.className = 'box';
+
+        const isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+
+        resultBox.innerHTML = `
+        <p><strong>Q${idx + 1}:</strong> ${q.question}</p>
+        <p>Your answer: <em>${userAnswer || '(no answer)'}</em></p>
+        <p>Correct answer: <strong>${correctAnswer}</strong></p>
+        <p style="color: ${isCorrect ? 'green' : 'red'};">${isCorrect ? 'Correct!' : 'Incorrect'}</p>
+        `;
+
+        if (isCorrect) correct++;
+        resultsContainer.appendChild(resultBox);
+    });
+
+    const summary = document.createElement('div');
+    summary.className = 'notification is-info';
+    summary.innerHTML = `<strong>You got ${correct} out of ${total} correct.</strong>`;
+    resultsContainer.prepend(summary);
+
+    showSection(resultsSection);
+});
