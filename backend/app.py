@@ -2,20 +2,20 @@ from flask import Flask, request, jsonify
 import fitz
 import spacy
 from transformers import pipeline
-import io
 import traceback
+import random
 
 app = Flask(__name__)
 nlp = spacy.load('en_core_web_sm')
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
 
-# Question Generation Logic
+# Enhanced Question Generation Logic with Multiple Choice
 def generate_questions(text):
     doc = nlp(text)
     questions = []
 
-     # Step 1: If text is very long, summarize in chunks
+    # Summarize long texts
     if len(text) > 1024:
         summarized_chunks = []
         for i in range(0, len(text), 1000):
@@ -26,17 +26,39 @@ def generate_questions(text):
     else:
         summarized_text = text
 
-    # Re-analyze with spaCy on summarized content
+    # Re-analyze with spaCy
     doc = nlp(summarized_text)
 
-    # 1. Named Entity Questions
+    # Collect potential distractors
+    all_distractors = set()
     for ent in doc.ents:
-        if ent.label_ == 'PERSON':
-            questions.append(f"Who is {ent.text}?")
-        elif ent.label_ in ['ORG', 'GPE', 'LOC', 'PRODUCT']:
-            questions.append(f"What is {ent.text}?")
+        all_distractors.add(ent.text.strip())
+    for chunk in doc.noun_chunks:
+        all_distractors.add(chunk.text.strip())
+    all_distractors = list({d for d in all_distractors if 3 < len(d) < 50})
+    used_questions = set()
 
-    # 2. Fact/Definition-based Questions
+    # Entity-based Questions
+    for ent in doc.ents:
+        if ent.label_ in ['PERSON', 'ORG', 'GPE', 'LOC', 'PRODUCT']:
+            correct = ent.text.strip()
+            if correct.lower() in used_questions:
+                continue
+            used_questions.add(correct.lower())
+
+            distractors = [d for d in all_distractors if d.lower() != correct.lower()]
+            options = random.sample(distractors, k=3) if len(distractors) >= 3 else distractors[:]
+            options.append(correct)
+            random.shuffle(options)
+
+            questions.append({
+                "question": f"What is {correct}?",
+                "options": options,
+                "answer": correct,
+                "type": "mcq"
+            })
+
+    # Definition-style Questions
     if len(questions) < 5:
         for sent in doc.sents:
             sent_text = sent.text.strip()
@@ -44,20 +66,41 @@ def generate_questions(text):
                 parts = sent_text.split(" is ")
                 if len(parts) == 2:
                     subject = parts[0].strip()
-                    questions.append(f"What is {subject}?")
+                    answer = parts[1].strip().split('.')[0]
                 else:
-                    questions.append(f"What is the meaning of: \"{sent_text}\"?")
-            if len(questions) >= 10:
-                break
+                    subject = sent_text
+                    answer = sent_text
+
+                if subject.lower() in used_questions or not answer:
+                    continue
+                used_questions.add(subject.lower())
+
+                distractors = [d for d in all_distractors if d.lower() != answer.lower()]
+                options = random.sample(distractors, k=3) if len(distractors) >= 3 else distractors[:]
+                options.append(answer)
+                random.shuffle(options)
+
+                questions.append({
+                    "question": f"What is {subject}?",
+                    "options": [],
+                    "answer": answer,
+                    "type": "fill"
+                })
+
+                if len(questions) >= 10:
+                    break
 
     if not questions:
-        questions.append("No useful study questions could be generated from this content.")
-    
+        questions.append({
+            "question": "No useful study questions could be generated from this content.",
+            "options": [],
+            "answer": ""
+        })
+
     return questions
 
 
-
-# Route: Text Input Processing
+# Text route
 @app.route('/process', methods=['POST'])
 def process():
     data = request.json
@@ -69,7 +112,7 @@ def process():
     return jsonify({'questions': questions})
 
 
-# Route: PDF File Processing
+# PDF route
 @app.route('/process-pdf', methods=['POST'])
 def process_pdf():
     pdf_bytes = request.data

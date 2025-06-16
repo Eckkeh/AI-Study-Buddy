@@ -67,14 +67,30 @@ function displayQuiz(questions) {
       questionBox.innerHTML = `<p><strong>Q${idx + 1}:</strong> ${q}</p>`;
     } else {
       questionBox.innerHTML = `<p><strong>Q${idx + 1}:</strong> ${q.question}</p>`;
+
       if (q.type === 'mcq' && q.options) {
         const ul = document.createElement('ul');
         ul.style.listStyleType = 'none';
-        q.options.forEach(opt => {
+
+        q.options.forEach((opt, i) => {
           const li = document.createElement('li');
-          li.textContent = opt;
+
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = `question${idx}`;
+          radio.id = `q${idx}_opt${i}`;
+          radio.value = opt;
+
+          const label = document.createElement('label');
+          label.htmlFor = radio.id;
+          label.textContent = opt;
+          label.style.marginLeft = '8px';
+
+          li.appendChild(radio);
+          li.appendChild(label);
           ul.appendChild(li);
         });
+
         questionBox.appendChild(ul);
       } else if (q.type === 'fill') {
         const input = document.createElement('input');
