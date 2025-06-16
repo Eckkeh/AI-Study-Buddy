@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
 </head>
 <body class="section">
-    <div class="container">
+    <div class="container" id="uploadSection">
         <h1 class="title is-3">AI Study Buddy</h1>
 
         <div class="field">
@@ -18,8 +18,22 @@
         </div>
         
         <div class="field">
+            <label class="label">Or Enter Text:</label>
             <div class="control">
                 <textarea id="userInput" class="textarea is-medium" placeholder="Paste or type text here..."></textarea>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Choose Quiz Type:</label>
+            <div class="control">
+                <div class="select">
+                    <select id="quizType">
+                        <option value="mcq">Multiple Choice</option>
+                        <option value="fill">Fill in the Blank</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -28,8 +42,17 @@
                 <button id="processBtn" class="button is-link is-medium">Generate Quiz</button>
             </div>
         </div>
+    </div>
 
-        <pre id="output" class="box mt-4 has-text-grey-dark"></pre>
+    <div class="container" id="loadingSection" style="display: none;">
+        <h2 class="title is-4">Generating your quiz...</h2>
+        <progress class="progress is-large is-info" max="100">Loading</progress>
+    </div>
+
+    <div class="container" id="quizSection" style="display: none;">
+        <h2 class="title is-4">Your Quiz</h2>
+        <div id="quizContainer" class="box"></div>
+        <button class="button is-light mt-3" onclick="location.reload()">Back</button>
     </div>
 </body>
 </html>

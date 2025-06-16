@@ -19,7 +19,19 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    // pythonProcess = spawn('python', ['backend/app.py']);
+    pythonProcess = spawn('python', [path.join(__dirname, 'backend', 'app.py')]);
+
+    pythonProcess.stdout.on('data', (data) => {
+        console.log(`[PYTHON STDOUT]: %{data}`);
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+        console.error(`[PYTHON STDERR]: ${data}`);
+    });
+
+    pythonProcess.on('close', (code) => {
+        console.log(`[PYTHON PROCESS ENDED] Code: ${code}`);
+    });
 
     createWindow();
 });
@@ -29,21 +41,20 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('send-text', async (event, inputText) => {
+ipcMain.handle('send-text', async (event, inputText, quizType) => {
     const response = await fetch('http://127.0.0.1:5000/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: inputText }),
+        body: JSON.stringify({ text: inputText, quiz_type: quizType }),
     });
     return await response.json();
 });
 
-ipcMain.handle('send-pdf', async (event, pdfBytes) => {
+ipcMain.handle('send-pdf', async (event, pdfBytes, quizType) => {
     const response = await fetch('http://127.0.0.1:5000/process-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
+        headers: { 'Content-Type': 'application/octet-stream', 'Quiz-Type': quizType },
         body: Buffer.from(pdfBytes),
     });
-    const data = await response.json();
-    return data;
+    return await response.json();
 });

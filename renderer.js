@@ -1,44 +1,89 @@
 let selectedPdf = null;
 
-document.getElementById('pdfUpload').addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    const output = document.getElementById('output');
+const uploadSection = document.getElementById('uploadSection');
+const loadingSection = document.getElementById('loadingSection');
+const quizSection = document.getElementById('quizSection');
+const quizContainer = document.getElementById('quizContainer');
 
-    if (!file) return;
+function showSection(section) {
+  uploadSection.style.display = 'none';
+  loadingSection.style.display = 'none';
+  quizSection.style.display = 'none';
 
-    if (file.type !== 'application/pdf') {
-        output.textContent = "Error: Please upload a valid PDF file.";
-        selectedPdf = null;
-        return;
-    }
+  section.style.display = 'block';
+}
 
-    selectedPdf = file; // Save file for processing later when button is clicked
-    output.textContent = "PDF uploaded. Ready to generate quiz.";
+document.getElementById('pdfUpload').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (file && file.type === 'application/pdf') {
+    selectedPdf = file;
+  } else {
+    selectedPdf = null;
+    alert("Please upload a valid PDF file.");
+  }
 });
 
 document.getElementById('processBtn').addEventListener('click', async () => {
-    const input = document.getElementById('userInput').value.trim();
-    const output = document.getElementById('output');
-    output.textContent = "Processing...";
+  const input = document.getElementById('userInput').value.trim();
+  const quizType = document.getElementById('quizType').value;
 
-    try {
-        let result;
+  if (!input && !selectedPdf) {
+    alert("Please enter text or upload a PDF.");
+    return;
+  }
 
-        if (selectedPdf) {
-            const arrayBuffer = await selectedPdf.arrayBuffer();
-            result = await window.api.sendPdf(new Uint8Array(arrayBuffer));
-        } else if (input) {
-            result = await window.api.sendText(input);
-        } else {
-            output.textContent = "Please enter text or upload a PDF.";
-            return;
-        }
+  showSection(loadingSection);
 
-        console.log("API result:", result);
-        output.textContent = result?.questions
-            ? `Quiz Questions:\n${result.questions}`
-            : "No questions returned.";
-    } catch (err) {
-        output.textContent = `Error: ${err.message}`;
+  try {
+    let result;
+    if (selectedPdf) {
+      const arrayBuffer = await selectedPdf.arrayBuffer();
+      result = await window.api.sendPdf(new Uint8Array(arrayBuffer), quizType);
+    } else {
+      result = await window.api.sendText(input, quizType);
     }
+
+    if (result?.questions) {
+      displayQuiz(result.questions);
+      showSection(quizSection);
+    } else {
+      alert("No questions returned.");
+      showSection(uploadSection);
+    }
+  } catch (err) {
+    alert("Error: " + err.message);
+    showSection(uploadSection);
+  }
 });
+
+function displayQuiz(questions) {
+  quizContainer.innerHTML = '';
+
+  questions.forEach((q, idx) => {
+    const questionBox = document.createElement('div');
+    questionBox.className = 'box';
+
+    if (typeof q === 'string') {
+      questionBox.innerHTML = `<p><strong>Q${idx + 1}:</strong> ${q}</p>`;
+    } else {
+      questionBox.innerHTML = `<p><strong>Q${idx + 1}:</strong> ${q.question}</p>`;
+      if (q.type === 'mcq' && q.options) {
+        const ul = document.createElement('ul');
+        ul.style.listStyleType = 'none';
+        q.options.forEach(opt => {
+          const li = document.createElement('li');
+          li.textContent = opt;
+          ul.appendChild(li);
+        });
+        questionBox.appendChild(ul);
+      } else if (q.type === 'fill') {
+        const input = document.createElement('input');
+        input.className = 'input';
+        input.placeholder = 'Your answer...';
+        questionBox.appendChild(input);
+      }
+    }
+
+    quizContainer.appendChild(questionBox);
+  });
+}
