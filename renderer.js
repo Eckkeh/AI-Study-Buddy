@@ -63,6 +63,7 @@ document.getElementById('processBtn').addEventListener('click', async () => {
 });
 
 function displayQuiz(questions) {
+    currentQuestions = questions;
   quizContainer.innerHTML = '';
 
   questions.forEach((q, idx) => {
@@ -102,6 +103,7 @@ function displayQuiz(questions) {
         const input = document.createElement('input');
         input.className = 'input';
         input.placeholder = 'Your answer...';
+        input.setAttribute('data-question-index', idx);
         questionBox.appendChild(input);
       }
     }
