@@ -11,7 +11,8 @@ summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
 
 # Enhanced Question Generation Logic with Multiple Choice
-def generate_questions(text):
+
+def generate_questions(text, quiz_type="mixed"):
     doc = nlp(text)
     questions = []
 
@@ -38,28 +39,29 @@ def generate_questions(text):
     all_distractors = list({d for d in all_distractors if 3 < len(d) < 50})
     used_questions = set()
 
-    # Entity-based Questions
-    for ent in doc.ents:
-        if ent.label_ in ['PERSON', 'ORG', 'GPE', 'LOC', 'PRODUCT']:
-            correct = ent.text.strip()
-            if correct.lower() in used_questions:
-                continue
-            used_questions.add(correct.lower())
+    # Entity-based MCQ Questions
+    if quiz_type in ["mcq", "mixed"]:
+        for ent in doc.ents:
+            if ent.label_ in ['PERSON', 'ORG', 'GPE', 'LOC', 'PRODUCT']:
+                correct = ent.text.strip()
+                if correct.lower() in used_questions:
+                    continue
+                used_questions.add(correct.lower())
 
-            distractors = [d for d in all_distractors if d.lower() != correct.lower()]
-            options = random.sample(distractors, k=3) if len(distractors) >= 3 else distractors[:]
-            options.append(correct)
-            random.shuffle(options)
+                distractors = [d for d in all_distractors if d.lower() != correct.lower()]
+                options = random.sample(distractors, k=3) if len(distractors) >= 3 else distractors[:]
+                options.append(correct)
+                random.shuffle(options)
 
-            questions.append({
-                "question": f"What is {correct}?",
-                "options": options,
-                "answer": correct,
-                "type": "mcq"
-            })
+                questions.append({
+                    "question": f"What is {correct}?",
+                    "options": options,
+                    "answer": correct,
+                    "type": "mcq"
+                })
 
-    # Definition-style Questions
-    if len(questions) < 5:
+    # Definition-style Fill-in-the-Blank Questions
+    if quiz_type in ["fill", "mixed"]:
         for sent in doc.sents:
             sent_text = sent.text.strip()
             if 10 < len(sent_text) < 200 and (" is " in sent_text or " are " in sent_text):
@@ -74,11 +76,6 @@ def generate_questions(text):
                 if subject.lower() in used_questions or not answer:
                     continue
                 used_questions.add(subject.lower())
-
-                distractors = [d for d in all_distractors if d.lower() != answer.lower()]
-                options = random.sample(distractors, k=3) if len(distractors) >= 3 else distractors[:]
-                options.append(answer)
-                random.shuffle(options)
 
                 questions.append({
                     "question": f"What is {subject}?",
@@ -105,16 +102,18 @@ def generate_questions(text):
 def process():
     data = request.json
     text = data.get('text', '')
+    quiz_type = data.get('quiz_type', 'mixed')
     if not text:
         return jsonify({'error': 'No text provided'}), 400
 
-    questions = generate_questions(text)
+    questions = generate_questions(text, quiz_type)
     return jsonify({'questions': questions})
 
 
 # PDF route
 @app.route('/process-pdf', methods=['POST'])
 def process_pdf():
+    quiz_type = request.headers.get('X-Quiz-Type', 'mixed')
     pdf_bytes = request.data
     if not pdf_bytes:
         return jsonify({'error': 'No PDF data received'}), 400
@@ -135,7 +134,7 @@ def process_pdf():
         if not full_text.strip():
             return jsonify({'error': 'No text extracted from PDF.'})
 
-        questions = generate_questions(full_text)
+        questions = generate_questions(full_text, quiz_type)
         return jsonify({'questions': questions}), 200
 
     except Exception as e:

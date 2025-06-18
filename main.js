@@ -53,7 +53,7 @@ ipcMain.handle('send-text', async (event, inputText, quizType) => {
 ipcMain.handle('send-pdf', async (event, pdfBytes, quizType) => {
     const response = await fetch('http://127.0.0.1:5000/process-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream', 'Quiz-Type': quizType },
+        headers: { 'Content-Type': 'application/octet-stream', 'X-Quiz-Type': quizType },
         body: Buffer.from(pdfBytes),
     });
     return await response.json();
