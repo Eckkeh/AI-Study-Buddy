@@ -15,6 +15,7 @@ summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 def generate_questions(text, quiz_type="mixed"):
     doc = nlp(text)
     questions = []
+    
 
     # Summarize long texts
     if len(text) > 1024:
@@ -29,6 +30,21 @@ def generate_questions(text, quiz_type="mixed"):
 
     # Re-analyze with spaCy
     doc = nlp(summarized_text)
+    sentences = list(doc.sents)
+
+    # Helper: try to extract definitions for entities
+    def find_definition_for_entity(entity_text, sentences):
+        for sent in sentences:
+            lowered = sent.text.lower()
+            if entity_text.lower() in lowered and (" is " in lowered or " are " in lowered):
+                if " is " in lowered:
+                    parts = sent.text.split(" is ", 1)
+                else:
+                    parts = sent.text.split(" are ", 1)
+
+                if len(parts) == 2 and parts[0].strip().lower() == entity_text.lower():
+                    return parts[1].split('.')[0].strip()
+        return None
 
     # Collect potential distractors
     all_distractors = set()
@@ -43,35 +59,52 @@ def generate_questions(text, quiz_type="mixed"):
     if quiz_type in ["mcq", "mixed"]:
         for ent in doc.ents:
             if ent.label_ in ['PERSON', 'ORG', 'GPE', 'LOC', 'PRODUCT']:
-                correct = ent.text.strip()
-                if correct.lower() in used_questions:
+                entity_text = ent.text.strip()
+                if entity_text.lower() in used_questions:
                     continue
-                used_questions.add(correct.lower())
 
-                distractors = [d for d in all_distractors if d.lower() != correct.lower()]
-                options = random.sample(distractors, k=3) if len(distractors) >= 3 else distractors[:]
-                options.append(correct)
+                definition = find_definition_for_entity(entity_text, sentences)
+
+                # If no usable definition, fall back to entity name
+                answer_text = definition if definition and len(definition.split()) > 1 else entity_text
+
+                # Prevent duplicate options and nonsense distractors
+                distractors = [d for d in all_distractors 
+                                if d.lower() != answer_text.lower() 
+                                and d.lower() != entity_text.lower()
+                                and d.lower() not in used_questions]
+
+                # Ensure at least 3 distractors
+                if len(distractors) < 3:
+                    continue
+
+                options = random.sample(distractors, k=3)
+                options.append(answer_text)
                 random.shuffle(options)
 
                 questions.append({
-                    "question": f"What is {correct}?",
+                    "question": f"What is {entity_text}?",
                     "options": options,
-                    "answer": correct,
+                    "answer": answer_text,
                     "type": "mcq"
                 })
+
+                used_questions.add(entity_text.lower())
 
     # Definition-style Fill-in-the-Blank Questions
     if quiz_type in ["fill", "mixed"]:
         for sent in doc.sents:
             sent_text = sent.text.strip()
             if 10 < len(sent_text) < 200 and (" is " in sent_text or " are " in sent_text):
-                parts = sent_text.split(" is ")
-                if len(parts) == 2:
-                    subject = parts[0].strip()
-                    answer = parts[1].strip().split('.')[0]
+                if " is " in sent_text:
+                    parts = sent_text.split(" is ", 1)
+                elif " are " in sent_text:
+                    parts = sent_text.split(" are ", 1)
                 else:
-                    subject = sent_text
-                    answer = sent_text
+                    parts = [sent_text, ""]
+
+                subject = parts[0].strip()
+                answer = parts[1].strip().split('.')[0]
 
                 if subject.lower() in used_questions or not answer:
                     continue
