@@ -22,7 +22,7 @@ app.whenReady().then(() => {
     pythonProcess = spawn('python', [path.join(__dirname, 'backend', 'app.py')]);
 
     pythonProcess.stdout.on('data', (data) => {
-        console.log(`[PYTHON STDOUT]: %{data}`);
+        console.log(`[PYTHON STDOUT]: ${data}`);
     });
 
     pythonProcess.stderr.on('data', (data) => {
