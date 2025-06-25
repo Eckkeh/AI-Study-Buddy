@@ -63,7 +63,7 @@ document.getElementById('processBtn').addEventListener('click', async () => {
 });
 
 function displayQuiz(questions) {
-    currentQuestions = questions;
+  currentQuestions = questions;
   quizContainer.innerHTML = '';
 
   questions.forEach((q, idx) => {
@@ -112,44 +112,49 @@ function displayQuiz(questions) {
   });
 }
 
+// ✅ Normalize answers (case-insensitive, punctuation-insensitive)
+function normalizeAnswer(ans) {
+  return ans.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 submitBtn.addEventListener('click', () => {
-    let correct = 0;
-    let total = currentQuestions.length;
-    resultsContainer.innerHTML = '';
+  let correct = 0;
+  let total = currentQuestions.length;
+  resultsContainer.innerHTML = '';
 
-    currentQuestions.forEach((q, idx) => {
-        if (typeof q === 'string') return;
-        let userAnswer = '';
-        let correctAnswer = q.answer || '';
+  currentQuestions.forEach((q, idx) => {
+    if (typeof q === 'string') return;
+    let userAnswer = '';
+    let correctAnswer = q.answer || '';
 
-        if (q.type === 'mcq') {
-            const selected = document.querySelector(`input[name="question${idx}"]:checked`);
-            userAnswer = selected ? selected.value : '';
-        } else if (q.type === 'fill') {
-            const input = quizContainer.querySelector(`input[data-question-index="${idx}"]`);
-            userAnswer = input?.value?.trim() || '';
-        }
+    if (q.type === 'mcq') {
+      const selected = document.querySelector(`input[name="question${idx}"]:checked`);
+      userAnswer = selected ? selected.value : '';
+    } else if (q.type === 'fill') {
+      const input = quizContainer.querySelector(`input[data-question-index="${idx}"]`);
+      userAnswer = input?.value?.trim() || '';
+    }
 
-        const resultBox = document.createElement('div');
-        resultBox.className = 'box';
+    const resultBox = document.createElement('div');
+    resultBox.className = 'box';
 
-        const isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+    const isCorrect = normalizeAnswer(userAnswer) === normalizeAnswer(correctAnswer);
 
-        resultBox.innerHTML = `
-        <p><strong>Q${idx + 1}:</strong> ${q.question}</p>
-        <p>Your answer: <em>${userAnswer || '(no answer)'}</em></p>
-        <p>Correct answer: <strong>${correctAnswer}</strong></p>
-        <p style="color: ${isCorrect ? 'green' : 'red'};">${isCorrect ? 'Correct!' : 'Incorrect'}</p>
-        `;
+    resultBox.innerHTML = `
+      <p><strong>Q${idx + 1}:</strong> ${q.question}</p>
+      <p>Your answer: <em>${userAnswer || '(no answer)'}</em></p>
+      <p>Correct answer: <strong>${correctAnswer}</strong></p>
+      <p style="color: ${isCorrect ? 'green' : 'red'};">${isCorrect ? 'Correct!' : 'Incorrect'}</p>
+    `;
 
-        if (isCorrect) correct++;
-        resultsContainer.appendChild(resultBox);
-    });
+    if (isCorrect) correct++;
+    resultsContainer.appendChild(resultBox);
+  });
 
-    const summary = document.createElement('div');
-    summary.className = 'notification is-info';
-    summary.innerHTML = `<strong>You got ${correct} out of ${total} correct.</strong>`;
-    resultsContainer.prepend(summary);
+  const summary = document.createElement('div');
+  summary.className = 'notification is-info';
+  summary.innerHTML = `<strong>You got ${correct} out of ${total} correct.</strong>`;
+  resultsContainer.prepend(summary);
 
-    showSection(resultsSection);
+  showSection(resultsSection);
 });

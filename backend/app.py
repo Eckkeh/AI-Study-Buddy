@@ -4,18 +4,20 @@ import spacy
 from transformers import pipeline
 import traceback
 import random
+import re
 
 app = Flask(__name__)
 nlp = spacy.load('en_core_web_sm')
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
+# Helper to normalize answers for comparison (optional, for frontend/backend use)
+def normalize_answer(ans):
+    return re.sub(r'[^a-z0-9]', '', ans.lower())
 
-# Enhanced Question Generation Logic with Multiple Choice
-
+# Enhanced Question Generation Logic with Accuracy & Phrasing Fixes
 def generate_questions(text, quiz_type="mixed"):
     doc = nlp(text)
     questions = []
-    
 
     # Summarize long texts
     if len(text) > 1024:
@@ -55,6 +57,9 @@ def generate_questions(text, quiz_type="mixed"):
     all_distractors = list({d for d in all_distractors if 3 < len(d) < 50})
     used_questions = set()
 
+    # Define exceptions for "Where is" phrasing
+    where_exceptions = ["capital"]  # add any terms here that should NOT get "Where is"
+
     # Entity-based MCQ Questions
     if quiz_type in ["mcq", "mixed"]:
         for ent in doc.ents:
@@ -65,16 +70,18 @@ def generate_questions(text, quiz_type="mixed"):
 
                 definition = find_definition_for_entity(entity_text, sentences)
 
-                # If no usable definition, fall back to entity name
-                answer_text = definition if definition and len(definition.split()) > 1 else entity_text
+                if definition and len(definition.split()) > 2 and entity_text.lower() not in definition.lower():
+                    answer_text = definition
+                else:
+                    continue  # skip weak entries
 
-                # Prevent duplicate options and nonsense distractors
                 distractors = [d for d in all_distractors 
                                 if d.lower() != answer_text.lower() 
                                 and d.lower() != entity_text.lower()
-                                and d.lower() not in used_questions]
+                                and d.lower() not in used_questions
+                                and not d.isupper()
+                                and abs(len(d) - len(answer_text)) < 15]
 
-                # Ensure at least 3 distractors
                 if len(distractors) < 3:
                     continue
 
@@ -82,8 +89,15 @@ def generate_questions(text, quiz_type="mixed"):
                 options.append(answer_text)
                 random.shuffle(options)
 
+                # Smarter question phrasing for MCQs with exceptions
+                if any(word in entity_text.lower() for word in ["statue", "city", "wall", "mountain", "building", "location", "river", "park"]) \
+                    and not any(exc in entity_text.lower() for exc in where_exceptions):
+                    question_text = f"Where is {entity_text}?"
+                else:
+                    question_text = f"What is {entity_text}?"
+
                 questions.append({
-                    "question": f"What is {entity_text}?",
+                    "question": question_text,
                     "options": options,
                     "answer": answer_text,
                     "type": "mcq"
@@ -95,27 +109,47 @@ def generate_questions(text, quiz_type="mixed"):
     if quiz_type in ["fill", "mixed"]:
         for sent in doc.sents:
             sent_text = sent.text.strip()
-            if 10 < len(sent_text) < 200 and (" is " in sent_text or " are " in sent_text):
+            if 20 < len(sent_text) < 200 and (" is " in sent_text or " are " in sent_text) and sent_text.endswith("."):
                 if " is " in sent_text:
                     parts = sent_text.split(" is ", 1)
-                elif " are " in sent_text:
-                    parts = sent_text.split(" are ", 1)
                 else:
-                    parts = [sent_text, ""]
+                    parts = sent_text.split(" are ", 1)
 
                 subject = parts[0].strip()
                 answer = parts[1].strip().split('.')[0]
 
                 if subject.lower() in used_questions or not answer:
                     continue
-                used_questions.add(subject.lower())
+                if len(answer.split()) < 1:
+                    continue
+
+                # Simplify the answer
+                simplified = answer.lower()
+                for phrase in ["commonly known as", "typically", "located in", "refers to", "is", "are"]:
+                    if simplified.startswith(phrase):
+                        simplified = simplified.replace(phrase, "").strip()
+
+                # Remove text in parentheses
+                if "(" in simplified and ")" in simplified:
+                    simplified = simplified.split("(", 1)[0].strip()
+
+                simplified = simplified.strip().capitalize()
+
+                # Smarter question phrasing for fill-in-the-blank with exceptions
+                if any(word in subject.lower() for word in ["wall", "statue", "city", "ocean", "river", "mountain", "park", "building", "location"]) \
+                    and not any(exc in subject.lower() for exc in where_exceptions):
+                    question_text = f"Where is {subject}?"
+                else:
+                    question_text = f"What is {subject}?"
 
                 questions.append({
-                    "question": f"What is {subject}?",
+                    "question": question_text,
                     "options": [],
-                    "answer": answer,
+                    "answer": simplified,
                     "type": "fill"
                 })
+
+                used_questions.add(subject.lower())
 
                 if len(questions) >= 10:
                     break
