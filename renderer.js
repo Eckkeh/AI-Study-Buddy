@@ -112,7 +112,6 @@ function displayQuiz(questions) {
   });
 }
 
-// ✅ Normalize answers (case-insensitive, punctuation-insensitive)
 function normalizeAnswer(ans) {
   return ans.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -138,7 +137,13 @@ submitBtn.addEventListener('click', () => {
     const resultBox = document.createElement('div');
     resultBox.className = 'box';
 
-    const isCorrect = normalizeAnswer(userAnswer) === normalizeAnswer(correctAnswer);
+    const normUser = normalizeAnswer(userAnswer);
+    const normCorrect = normalizeAnswer(correctAnswer);
+
+    const isCorrect =
+        normUser === normCorrect ||
+        normCorrect.includes(normUser) ||
+        normUser.includes(normCorrect);
 
     resultBox.innerHTML = `
       <p><strong>Q${idx + 1}:</strong> ${q.question}</p>
