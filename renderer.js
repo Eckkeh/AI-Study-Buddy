@@ -163,3 +163,25 @@ submitBtn.addEventListener('click', () => {
 
   showSection(resultsSection);
 });
+
+// Theme Switcher
+const themeToggle = document.getElementById('themeToggle');
+
+function applyTheme(theme) {
+    document.body.classList.remove('light-theme', 'dark-theme');
+    document.body.classList.add(`${theme}-theme`);
+    localStorage.setItem('theme', theme);
+}
+
+themeToggle.addEventListener('click', () => {
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    applyTheme(newTheme);
+    themeToggle.textContent = newTheme === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme';
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+    themeToggle.textContent = savedTheme === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme';
+});
